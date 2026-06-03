@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flytech Aerospace | Line Maintenance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        deepSlate: '#0F172A',
+                        techBlue: '#2563EB',
+                        techBlueHover: '#1D4ED8',
+                        offWhite: '#F8FAFC',
+                        mutedSlate: '#334155',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .page { display: none; }
+        .page.active { display: block; animation: pageIn 0.35s ease-out; }
+
+        @keyframes pageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-grid {
+            background-image:
+                radial-gradient(circle at 55% 40%, rgba(37,99,235,0.12) 0%, transparent 55%),
+                radial-gradient(circle, rgba(37,99,235,0.13) 1px, transparent 1px);
+            background-size: 100% 100%, 32px 32px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(130deg, #ffffff 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-lift {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .card-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(37,99,235,0.09);
+        }
+
+        .card-accent {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-accent::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #2563EB, #60a5fa);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+        .card-accent:hover::after { transform: scaleX(1); }
+
+        .btn-glow { box-shadow: 0 0 22px rgba(37,99,235,0.35); }
+        .btn-glow:hover { box-shadow: 0 0 34px rgba(37,99,235,0.55); }
+
+        .btn-primary { background: linear-gradient(135deg, #2563EB 0%, #3b82f6 100%); }
+        .btn-primary:hover { background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); }
+
+        .logo-img { filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.5)); }
+
+        .input-field {
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        @keyframes bounce-y {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50%       { transform: translateX(-50%) translateY(6px); }
+        }
+        .scroll-cue { animation: bounce-y 2s infinite; }
+
+        #airport-map { z-index: 0; }
+        .airport-item { cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+        .airport-item:hover { background: #eff6ff; border-color: #2563EB; }
+        .airport-item.selected { background: #dbeafe; border-color: #2563EB; }
+
+        .nav-link.active-page {
+            color: white !important;
+            background: rgba(37, 99, 235, 0.15);
+        }
+
+        .page-hero {
+            position: relative;
+            overflow: hidden;
+        }
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background-image: url('background.png');
+            background-size: cover;
+            background-position: center;
+            filter: blur(3px);
+            opacity: 0.38;
+        }
+    </style>
+</head>
+<body class="bg-offWhite text-deepSlate flex flex-col min-h-screen font-sans">
+
+    <!-- ── HEADER ── -->
+    <header class="bg-deepSlate/95 backdrop-blur-md text-white sticky top-0 z-50 border-b border-slate-800/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <a href="#" onclick="navigateTo('home')" class="flex items-center justify-center transition hover:opacity-90 flex-shrink-0">
+                <img src="logo.png" alt="Flytech Aerospace Logo" class="logo-img h-14 w-auto object-contain">
+            </a>
+
+            <nav class="hidden md:flex items-center space-x-1">
+                <a href="#" onclick="navigateTo('home')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/8 transition" data-page="home">Home</a>
+                <a href="#" onclick="navigateTo('about')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="about">About Us</a>
+                <a href="#" onclick="navigateTo('careers')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="careers">Careers</a>
+                <a href="#" onclick="navigateTo('contact')" class="nav-link px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="contact">Contact Us</a>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <a href="#" onclick="navigateTo('contact')" class="hidden sm:block btn-primary btn-glow text-white px-5 py-2.5 rounded-xl font-semibold transition-all text-sm">
+                    Get in Touch
+                </a>
+                <button id="mobile-btn" onclick="toggleMobile()" class="md:hidden p-2 rounded-lg hover:bg-white/10 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-nav" class="hidden md:hidden border-t border-slate-800 bg-deepSlate px-4 py-3 space-y-1">
+            <a href="#" onclick="navigateTo('home');toggleMobile()" class="nav-link block px-3 py-2 rounded-lg text-sm text-white hover:bg-white/8 transition" data-page="home">Home</a>
+            <a href="#" onclick="navigateTo('about');toggleMobile()" class="nav-link block px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="about">About Us</a>
+            <a href="#" onclick="navigateTo('careers');toggleMobile()" class="nav-link block px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="careers">Careers</a>
+            <a href="#" onclick="navigateTo('contact');toggleMobile()" class="nav-link block px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-white/8 transition" data-page="contact">Contact Us</a>
+            <div class="pt-2 border-t border-slate-800">
+                <a href="#" onclick="navigateTo('contact');toggleMobile()" class="block bg-techBlue text-white text-center px-3 py-2.5 rounded-xl text-sm font-semibold">Get in Touch</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow">
+
+        <!-- ═══════════════ HOME ═══════════════ -->
+        <section id="home" class="page active">
+
+            <!-- Hero -->
+            <div class="hero-grid bg-deepSlate text-white relative overflow-hidden min-h-[88vh] flex items-center justify-center py-20 px-4 sm:px-6 lg:px-8">
+                <div class="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-techBlue/8 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-0 right-0 w-[600px] h-[400px] bg-techBlue/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute top-0 right-1/4 w-[400px] h-[400px] bg-techBlue/6 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-1/3 left-0 w-[350px] h-[350px] bg-techBlue/4 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- Blueprint: image background, behind text -->
+                <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                    <img src="esquema_plane.webp" alt=""
+                         class="w-full h-full object-cover select-none"
+                         style="opacity: 0.32; filter: blur(2px);">
+
+                </div>
+
+                <!-- Text: on top of the blueprint background -->
+                <div class="relative z-10 max-w-4xl mx-auto w-full text-center">
+                    <div class="inline-flex p-[1px] rounded-full bg-gradient-to-r from-techBlue/30 to-transparent mb-7 mx-auto">
+                        <div class="inline-flex items-center gap-2 bg-deepSlate/80 backdrop-blur-sm text-techBlue font-semibold tracking-widest uppercase text-xs px-5 py-2 rounded-full">
+                            <span class="w-1.5 h-1.5 bg-techBlue rounded-full animate-pulse"></span>
+                            Safety · Compliance · Integrity · Quality
+                        </div>
+                    </div>
+
+                    <h1 class="text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-7">
+                        <span class="gradient-text">Leading the way</span><br>
+                        <span class="text-white">in Aircraft Maintenance</span>
+                    </h1>
+
+                    <p class="text-lg text-slate-400 max-w-xl mx-auto mb-10 leading-relaxed">
+                        Your on-time performance and dispatch reliability are paramount to us.
+                        Available <span class="text-white font-semibold">24 / 7 / 365</span> for every operational need.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <button onclick="navigateTo('about')" class="group btn-primary btn-glow text-white font-semibold px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                            Explore Our Services
+                            <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                        <button onclick="navigateTo('careers')" class="border border-white/20 hover:border-white/40 hover:bg-white/10 text-white font-semibold px-8 py-4 rounded-xl transition-all backdrop-blur-sm">
+                            Join Our Team
+                        </button>
+                    </div>
+                </div>
+
+                <div class="scroll-cue absolute bottom-8 left-1/2 text-slate-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Core Values -->
+            <div class="bg-slate-50 py-20 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-7xl mx-auto">
+                    <div class="text-center mb-12">
+                        <span class="text-techBlue text-xs font-bold tracking-[0.2em] uppercase block mb-2">Our Foundation</span>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-deepSlate tracking-tight">Our Core Values</h2>
+                        <p class="text-mutedSlate mt-2 text-sm">The principles that guide every decision we make.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="card-lift card-accent bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm p-7">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue rounded-xl flex items-center justify-center mb-5">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                            </div>
+                            <h3 class="font-bold mb-2">Safety</h3>
+                            <p class="text-mutedSlate text-sm leading-relaxed">Uncompromising safety frameworks embedded into every single turnaround and line maintenance check.</p>
+                        </div>
+
+                        <div class="card-lift card-accent bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm p-7">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue rounded-xl flex items-center justify-center mb-5">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                </svg>
+                            </div>
+                            <h3 class="font-bold mb-2">Compliance</h3>
+                            <p class="text-mutedSlate text-sm leading-relaxed">Strict adherence to international aviation legislation, keeping your fleet thoroughly compliant.</p>
+                        </div>
+
+                        <div class="card-lift card-accent bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm p-7">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue rounded-xl flex items-center justify-center mb-5">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+                                </svg>
+                            </div>
+                            <h3 class="font-bold mb-2">Integrity</h3>
+                            <p class="text-mutedSlate text-sm leading-relaxed">Transparent operations and authentic reporting standards you can trust across global networks.</p>
+                        </div>
+
+                        <div class="card-lift card-accent bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm p-7">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue rounded-xl flex items-center justify-center mb-5">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                                </svg>
+                            </div>
+                            <h3 class="font-bold mb-2">Quality</h3>
+                            <p class="text-mutedSlate text-sm leading-relaxed">Precision engineering delivered by senior aircraft maintenance specialists to secure maximum uptime.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="bg-deepSlate border-y border-slate-800">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+                        <div class="sm:border-r sm:border-slate-700">
+                            <p class="text-4xl font-extrabold gradient-text tabular-nums">24/7</p>
+                            <p class="text-sm text-slate-400 mt-1.5">Always Available</p>
+                        </div>
+                        <div class="sm:border-r sm:border-slate-700">
+                            <p class="text-4xl font-extrabold gradient-text tabular-nums">365</p>
+                            <p class="text-sm text-slate-400 mt-1.5">Days a Year</p>
+                        </div>
+                        <div class="sm:border-r sm:border-slate-700">
+                            <p class="text-4xl font-extrabold gradient-text tabular-nums">100%</p>
+                            <p class="text-sm text-slate-400 mt-1.5">Regulatory Compliance</p>
+                        </div>
+                        <div>
+                            <p class="text-4xl font-extrabold gradient-text tabular-nums">TGU</p>
+                            <p class="text-sm text-slate-400 mt-1.5">Operational Hub</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ═══════════════ ABOUT ═══════════════ -->
+        <section id="about" class="page">
+            <div class="page-hero hero-grid bg-deepSlate text-white py-20 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-7xl mx-auto relative z-10">
+                    <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-techBlue font-semibold tracking-widest uppercase text-xs px-4 py-2 rounded-full mb-5">
+                        About Flytech
+                    </div>
+                    <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight gradient-text">About Us</h2>
+                    <p class="text-slate-400 mt-3 max-w-xl">Aircraft Maintenance Professionals dedicated to elite execution.</p>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+                    <div>
+                        <span class="text-techBlue text-xs font-bold tracking-[0.2em] uppercase block mb-2">Our Approach</span>
+                        <h3 class="text-2xl sm:text-3xl font-extrabold mb-5 text-deepSlate">Your vision is our mission</h3>
+                        <p class="text-mutedSlate leading-relaxed mb-8">
+                            Flytech Aerospace coordinates elite aircraft maintenance with deep industry expertise. We ensure your fleet operates seamlessly under optimal conditions, lowering technical delays and driving top-tier dispatch performance.
+                        </p>
+
+                        <div class="space-y-4">
+                            <div class="card-lift bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex gap-4 items-start">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl text-techBlue flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs uppercase tracking-wider text-techBlue mb-1">Operational Base</h4>
+                                    <p class="text-sm text-mutedSlate">Aeropuerto Internacional Toncontín (TGU), CA-5, Tegucigalpa, Francisco Morazán, Honduras</p>
+                                </div>
+                            </div>
+
+                            <div class="card-lift bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex gap-4 items-start">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl text-techBlue flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs uppercase tracking-wider text-techBlue mb-1">Availability</h4>
+                                    <p class="text-sm text-mutedSlate">Open Today: 12:00 am – 11:45 pm</p>
+                                    <p class="text-xs font-semibold text-techBlue mt-1">24/7/365 Coverage</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-lg mb-5 text-deepSlate">Photo Gallery</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="card-lift bg-slate-100 h-48 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-mono cursor-pointer group overflow-hidden">
+                                <svg class="w-8 h-8 text-slate-300 group-hover:text-techBlue/50 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Image Asset 1
+                            </div>
+                            <div class="card-lift bg-slate-100 h-48 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-mono cursor-pointer group overflow-hidden">
+                                <svg class="w-8 h-8 text-slate-300 group-hover:text-techBlue/50 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Image Asset 2
+                            </div>
+                            <div class="card-lift bg-slate-100 h-48 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-mono cursor-pointer group overflow-hidden">
+                                <svg class="w-8 h-8 text-slate-300 group-hover:text-techBlue/50 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Image Asset 3
+                            </div>
+                            <div class="card-lift bg-slate-100 h-48 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-mono cursor-pointer group overflow-hidden">
+                                <svg class="w-8 h-8 text-slate-300 group-hover:text-techBlue/50 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Image Asset 4
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ═══════════════ CAREERS ═══════════════ -->
+        <section id="careers" class="page">
+            <div class="page-hero hero-grid bg-deepSlate text-white py-20 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-7xl mx-auto relative z-10">
+                    <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-techBlue font-semibold tracking-widest uppercase text-xs px-4 py-2 rounded-full mb-5">
+                        <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                        We're Hiring!
+                    </div>
+                    <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight gradient-text">Join the Team</h2>
+                    <p class="text-slate-400 mt-3 max-w-xl">Interested in one of our open positions? Start by applying here and attaching your resume.</p>
+                </div>
+            </div>
+
+            <div class="max-w-3xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+                <form id="careers-form" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
+                    <!-- honeypot -->
+                    <input type="text" name="_honey" style="display:none">
+                    <input type="hidden" name="_subject" value="New Job Application – Flytech Aerospace">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-deepSlate mb-2">Full Name</label>
+                            <input type="text" name="name" class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50" placeholder="John Doe">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-deepSlate mb-2">Phone Number</label>
+                            <input type="tel" name="phone" class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50" placeholder="+1 (555) 000-0000">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-deepSlate mb-2">Email Address <span class="text-red-400">*</span></label>
+                        <input type="email" name="email" required class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50" placeholder="you@example.com">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-deepSlate mb-2">Attach Resume</label>
+                        <label id="resume-label" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 hover:border-techBlue rounded-xl cursor-pointer transition-colors bg-slate-50 hover:bg-blue-50/30 group">
+                            <svg id="resume-icon" class="w-8 h-8 text-slate-300 group-hover:text-techBlue/60 transition-colors mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p id="resume-text" class="text-sm text-mutedSlate">Click to upload or <span class="text-techBlue font-medium">drag and drop</span></p>
+                            <p id="resume-hint" class="text-xs text-slate-400 mt-1">PDF, DOCX up to 10MB</p>
+                            <input type="file" name="attachment" id="resume-file" accept=".pdf,.doc,.docx" class="hidden">
+                        </label>
+                    </div>
+
+                    <div id="careers-msg" class="hidden rounded-xl px-4 py-3 text-sm font-medium"></div>
+
+                    <button type="submit" id="careers-btn" class="w-full btn-primary btn-glow text-white font-semibold py-4 rounded-xl transition-all text-sm tracking-wide">
+                        Submit Application
+                    </button>
+                </form>
+            </div>
+        </section>
+
+
+        <!-- ═══════════════ CONTACT ═══════════════ -->
+        <section id="contact" class="page">
+            <div class="page-hero hero-grid bg-deepSlate text-white py-20 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-7xl mx-auto relative z-10">
+                    <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-techBlue font-semibold tracking-widest uppercase text-xs px-4 py-2 rounded-full mb-5">
+                        Contact
+                    </div>
+                    <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight gradient-text">Contact Us</h2>
+                    <p class="text-slate-400 mt-3 max-w-xl">Get in touch directly with our dispatch administration desk.</p>
+                </div>
+            </div>
+
+            <!-- Our Presence -->
+            <div class="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <span class="text-techBlue text-xs font-bold tracking-[0.2em] uppercase block mb-1">Locations</span>
+                    <h3 class="text-2xl font-extrabold text-deepSlate">Our Presence</h3>
+                    <p class="text-mutedSlate text-sm mt-1">Click any location to find us on the map.</p>
+                </div>
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Airport list -->
+                    <div class="flex flex-col gap-3 lg:w-64 flex-shrink-0">
+                        <div id="ap-SAP" class="airport-item rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 shadow-sm" onclick="flyToAirport('SAP')">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-deepSlate">SAP</p>
+                                <p class="text-xs text-mutedSlate">San Pedro Sula, Honduras</p>
+                            </div>
+                        </div>
+                        <div id="ap-MGA" class="airport-item rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 shadow-sm" onclick="flyToAirport('MGA')">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-deepSlate">MGA</p>
+                                <p class="text-xs text-mutedSlate">Managua, Nicaragua</p>
+                            </div>
+                        </div>
+                        <div id="ap-SJO" class="airport-item rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 shadow-sm" onclick="flyToAirport('SJO')">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-deepSlate">SJO</p>
+                                <p class="text-xs text-mutedSlate">San José, Costa Rica</p>
+                            </div>
+                        </div>
+                        <div id="ap-SDQ" class="airport-item rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 shadow-sm" onclick="flyToAirport('SDQ')">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-deepSlate">SDQ</p>
+                                <p class="text-xs text-mutedSlate">Santo Domingo, D.R.</p>
+                            </div>
+                        </div>
+                        <div id="ap-PUJ" class="airport-item rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 shadow-sm" onclick="flyToAirport('PUJ')">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 text-techBlue flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-deepSlate">PUJ</p>
+                                <p class="text-xs text-mutedSlate">Punta Cana, D.R.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Map -->
+                    <div id="airport-map" class="flex-1 rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style="min-height: 400px;"></div>
+                </div>
+            </div>
+
+            <!-- Contact form -->
+            <div class="max-w-7xl mx-auto pb-16 px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-12">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div>
+                            <h3 class="text-2xl font-extrabold text-deepSlate mb-3">Drop us a line!</h3>
+                            <p class="text-mutedSlate text-sm leading-relaxed">For business inquiries, partnership requests, or emergency operational coordination — reach out to our primary point of contact.</p>
+                        </div>
+
+                        <div class="card-lift bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex gap-4 items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl text-techBlue flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-deepSlate mb-1">Email Coordination</h4>
+                                <a href="mailto:admin@flytech.aero" class="text-techBlue hover:underline text-sm font-medium">admin@flytech.aero</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <form id="contact-form" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-5">
+                            <!-- honeypot -->
+                            <input type="text" name="_honey" style="display:none">
+                            <input type="hidden" name="_subject" value="New Contact Message – Flytech Aerospace">
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-semibold text-deepSlate mb-2">Name</label>
+                                    <input type="text" name="name" class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-deepSlate mb-2">Email <span class="text-red-400">*</span></label>
+                                    <input type="email" name="email" required class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-deepSlate mb-2">Message</label>
+                                <textarea rows="4" name="message" class="input-field w-full border border-slate-200 rounded-xl p-3.5 text-sm bg-slate-50 resize-none" placeholder="How can we help?"></textarea>
+                            </div>
+                            <div id="contact-msg" class="hidden rounded-xl px-4 py-3 text-sm font-medium"></div>
+                            <button type="submit" id="contact-btn" class="w-full btn-primary btn-glow text-white font-semibold py-4 rounded-xl transition-all text-sm tracking-wide">
+                                Send Message
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ── FOOTER ── -->
+    <footer class="bg-deepSlate text-slate-400 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-10 mb-10">
+                <div>
+                    <div class="inline-flex mb-4">
+                        <img src="logo.png" alt="Flytech Aerospace Logo" class="logo-img h-10 w-auto object-contain">
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-xs">Elite aircraft line maintenance operations based in Tegucigalpa, Honduras.</p>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold text-sm mb-4">Navigation</h4>
+                    <ul class="space-y-2.5 text-sm">
+                        <li><a href="#" onclick="navigateTo('home')" class="hover:text-white transition">Home</a></li>
+                        <li><a href="#" onclick="navigateTo('about')" class="hover:text-white transition">About Us</a></li>
+                        <li><a href="#" onclick="navigateTo('careers')" class="hover:text-white transition">Careers</a></li>
+                        <li><a href="#" onclick="navigateTo('contact')" class="hover:text-white transition">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold text-sm mb-4">Contact</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><a href="mailto:admin@flytech.aero" class="hover:text-white transition">admin@flytech.aero</a></p>
+                        <p class="text-slate-600 text-xs mt-1">TGU — Available 24/7/365</p>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+                <p>Copyright © 2026 Flytech Aerospace — All Rights Reserved.</p>
+                <div class="flex space-x-6">
+                    <span>Safety</span>
+                    <span>Compliance</span>
+                    <span>Integrity</span>
+                    <span>Quality</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function navigateTo(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+            const target = document.getElementById(pageId);
+            if (target) {
+                target.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const isActive = link.getAttribute('data-page') === pageId;
+                link.classList.toggle('active-page', isActive);
+                link.classList.toggle('text-white', isActive);
+                link.classList.toggle('text-slate-300', !isActive);
+            });
+        }
+
+        function toggleMobile() {
+            document.getElementById('mobile-nav').classList.toggle('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => navigateTo('home'));
+
+        // ── Airport Map ──
+        const airports = {
+            SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP – San Pedro Sula, Honduras' },
+            MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA – Managua, Nicaragua' },
+            SJO: { lat:  9.9939, lng: -84.2088, label: 'SJO – San José, Costa Rica' },
+            SDQ: { lat: 18.4297, lng: -69.6689, label: 'SDQ – Santo Domingo, D.R.' },
+            PUJ: { lat: 18.5674, lng: -68.3634, label: 'PUJ – Punta Cana, D.R.' },
+        };
+
+        let airportMap = null;
+        let mapMarkers = {};
+
+        function initMap() {
+            if (airportMap) return;
+            airportMap = L.map('airport-map').setView([13.5, -78], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18,
+            }).addTo(airportMap);
+
+            const icon = L.divIcon({
+                className: '',
+                html: '<div style="width:14px;height:14px;background:#2563EB;border:2px solid white;border-radius:50%;box-shadow:0 0 8px rgba(37,99,235,0.6)"></div>',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+            });
+
+            Object.entries(airports).forEach(([code, ap]) => {
+                const marker = L.marker([ap.lat, ap.lng], { icon })
+                    .addTo(airportMap)
+                    .bindPopup(`<strong>${ap.label}</strong>`);
+                mapMarkers[code] = marker;
+            });
+        }
+
+        function flyToAirport(code) {
+            initMap();
+            const ap = airports[code];
+            airportMap.flyTo([ap.lat, ap.lng], 10, { duration: 1.2 });
+            mapMarkers[code].openPopup();
+            document.querySelectorAll('.airport-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById('ap-' + code).classList.add('selected');
+        }
+
+        // Init map when contact page becomes visible
+        const _origNavigateTo = navigateTo;
+        navigateTo = function(pageId) {
+            _origNavigateTo(pageId);
+            if (pageId === 'contact') setTimeout(initMap, 50);
+        };
+
+        // ── Form helpers ──
+        function showMsg(el, type, text) {
+            el.textContent = text;
+            el.className = 'rounded-xl px-4 py-3 text-sm font-medium ' +
+                (type === 'ok'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200');
+        }
+
+        // ── Contact form ──
+        document.getElementById('contact-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('contact-btn');
+            const msg = document.getElementById('contact-msg');
+            // honeypot check
+            if (this._honey && this._honey.value) return;
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            try {
+                const res = await fetch('https://formsubmit.co/ajax/Admin@flytech.aero', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        name:    this.name.value,
+                        email:   this.email.value,
+                        message: this.message.value,
+                        _subject: 'New Contact Message – Flytech Aerospace',
+                    }),
+                });
+                const data = await res.json();
+                if (data.success === 'true' || data.success === true) {
+                    showMsg(msg, 'ok', 'Message sent! We will get back to you shortly.');
+                    this.reset();
+                } else {
+                    showMsg(msg, 'err', 'Something went wrong. Please email us directly at admin@flytech.aero');
+                }
+            } catch {
+                showMsg(msg, 'err', 'Network error. Please email us directly at admin@flytech.aero');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Send Message';
+        });
+
+        // ── Careers form (multipart for file upload) ──
+        document.getElementById('resume-file').addEventListener('change', function() {
+            const name = this.files[0] ? this.files[0].name : null;
+            document.getElementById('resume-text').innerHTML = name
+                ? '<span class="text-techBlue font-medium">' + name + '</span>'
+                : 'Click to upload or <span class="text-techBlue font-medium">drag and drop</span>';
+            document.getElementById('resume-hint').textContent = name ? '' : 'PDF, DOCX up to 10MB';
+        });
+
+        document.getElementById('careers-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('careers-btn');
+            const msg = document.getElementById('careers-msg');
+            if (this._honey && this._honey.value) return;
+            btn.disabled = true;
+            btn.textContent = 'Submitting…';
+            const fd = new FormData(this);
+            try {
+                const res = await fetch('https://formsubmit.co/ajax/Admin@flytech.aero', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: fd,
+                });
+                const data = await res.json();
+                if (data.success === 'true' || data.success === true) {
+                    showMsg(msg, 'ok', 'Application received! We will review it and be in touch.');
+                    this.reset();
+                    document.getElementById('resume-text').innerHTML = 'Click to upload or <span class="text-techBlue font-medium">drag and drop</span>';
+                    document.getElementById('resume-hint').textContent = 'PDF, DOCX up to 10MB';
+                } else {
+                    showMsg(msg, 'err', 'Something went wrong. Please email your resume to admin@flytech.aero');
+                }
+            } catch {
+                showMsg(msg, 'err', 'Network error. Please email your resume to admin@flytech.aero');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Submit Application';
+        });
+    </script>
+</body>
+</html>
