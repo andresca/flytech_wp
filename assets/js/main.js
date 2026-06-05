@@ -13,43 +13,38 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = `mailto:admin@flytech.aero?subject=${subject}&body=${body}`;
     });
   }
+
+  const careersForm = document.querySelector('[data-careers-form]');
+  if (careersForm) {
+    careersForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = new FormData(careersForm);
+      const subject = encodeURIComponent(`Flytech Aerospace application - ${data.get('role') || 'General'}`);
+      const body = encodeURIComponent(`Name: ${data.get('name') || ''}\nPhone: ${data.get('phone') || ''}\nAddress: ${data.get('address') || ''}\nLicense: ${data.get('license') || ''}\nRole: ${data.get('role') || ''}\n\nMessage:\n${data.get('message') || ''}`);
+      window.location.href = `mailto:admin@flytech.aero?subject=${subject}&body=${body}`;
+    });
+  }
+
   const airports = {
-    SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
-    MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
-    SJO: { lat: 9.9939, lng: -84.2088, label: 'SJO - San Jose, Costa Rica' },
-    SDQ: { lat: 18.4297, lng: -69.6689, label: 'SDQ - Santo Domingo, D.R.' },
-    PUJ: { lat: 18.5674, lng: -68.3634, label: 'PUJ - Punta Cana, D.R.' },
+    SAP: { label: 'SAP - San Pedro Sula, Honduras', query: 'Ramon Villeda Morales International Airport SAP San Pedro Sula Honduras' },
+    MGA: { label: 'MGA - Managua, Nicaragua', query: 'Augusto C. Sandino International Airport MGA Managua Nicaragua' },
+    SJO: { label: 'SJO - San Jose, Costa Rica', query: 'Juan Santamaria International Airport SJO San Jose Costa Rica' },
+    SDQ: { label: 'SDQ - Santo Domingo, D.R.', query: 'Las Americas International Airport SDQ Santo Domingo Dominican Republic' },
+    PUJ: { label: 'PUJ - Punta Cana, D.R.', query: 'Punta Cana International Airport PUJ Dominican Republic' },
   };
 
-  const mapEl = document.getElementById('airport-map');
-  if (mapEl && window.L) {
-    const airportMap = L.map(mapEl, { scrollWheelZoom: false }).setView([13.5, -78], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 18,
-    }).addTo(airportMap);
+  const mapFrame = document.getElementById('airport-map-frame');
+  const mapLink = document.querySelector('.map-link');
+  const googleMapUrl = (query) => `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+  const googleMapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
-    const icon = L.divIcon({
-      className: '',
-      html: '<div class="map-pin"></div>',
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    });
-
-    const markers = {};
-    Object.entries(airports).forEach(([code, airport]) => {
-      markers[code] = L.marker([airport.lat, airport.lng], { icon })
-        .addTo(airportMap)
-        .bindPopup(`<strong>${airport.label}</strong>`);
-    });
-
+  if (mapFrame) {
     document.querySelectorAll('[data-airport]').forEach((item) => {
       item.addEventListener('click', () => {
-        const code = item.dataset.airport;
-        const airport = airports[code];
+        const airport = airports[item.dataset.airport];
         if (!airport) return;
-        airportMap.flyTo([airport.lat, airport.lng], 10, { duration: 1.2 });
-        markers[code].openPopup();
+        mapFrame.src = googleMapUrl(airport.query);
+        if (mapLink) mapLink.href = googleMapSearchUrl(airport.query);
         document.querySelectorAll('[data-airport]').forEach((el) => el.classList.remove('selected'));
         item.classList.add('selected');
       });
