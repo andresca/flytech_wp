@@ -15,16 +15,74 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const careersForm = document.querySelector('[data-careers-form]');
-  if (careersForm) {
-    careersForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const data = new FormData(careersForm);
-      const subject = encodeURIComponent(`Flytech Aerospace application - ${data.get('role') || 'General'}`);
-      const body = encodeURIComponent(`Name: ${data.get('name') || ''}\nPhone: ${data.get('phone') || ''}\nAddress: ${data.get('address') || ''}\nLicense: ${data.get('license') || ''}\nRole: ${data.get('role') || ''}\n\nMessage:\n${data.get('message') || ''}`);
-      window.location.href = `mailto:admin@flytech.aero?subject=${subject}&body=${body}`;
+  const resumeInput = document.getElementById('resume-file');
+  const resumeCount = document.getElementById('resume-count');
+
+  if (resumeInput && resumeCount) {
+    resumeInput.addEventListener('change', () => {
+      const count = resumeInput.files ? resumeInput.files.length : 0;
+      resumeCount.textContent = `Attachments (${count})`;
     });
   }
 
+  if (careersForm) {
+    careersForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('careers-msg');
+      const btn = document.getElementById('careers-btn');
+      const captchaToken = window.grecaptcha ? grecaptcha.getResponse() : '';
+
+      const showCareersMsg = (type, text) => {
+        if (!msg) return;
+        msg.textContent = text;
+        msg.className = `form-message ${type}`;
+      };
+
+      if (!resumeInput || !resumeInput.files || resumeInput.files.length === 0) {
+        showCareersMsg('err', 'Please attach your resume before submitting.');
+        return;
+      }
+
+      if (!captchaToken) {
+        showCareersMsg('err', 'Please complete the reCAPTCHA verification.');
+        return;
+      }
+
+      const fd = new FormData(careersForm);
+      fd.append('_subject', `Flytech Aerospace application - ${fd.get('role') || 'General'}`);
+      fd.append('_template', 'table');
+      fd.append('_captcha', 'false');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+      }
+
+      try {
+        const res = await fetch('https://formsubmit.co/ajax/admin@flytech.aero', {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: fd,
+        });
+        const data = await res.json();
+        if (res.ok && (data.success === 'true' || data.success === true)) {
+          showCareersMsg('ok', 'Application submitted. We will review your information shortly.');
+          careersForm.reset();
+          if (resumeCount) resumeCount.textContent = 'Attachments (0)';
+          if (window.grecaptcha) grecaptcha.reset();
+        } else {
+          showCareersMsg('err', 'Something went wrong. Please email your resume to admin@flytech.aero.');
+        }
+      } catch {
+        showCareersMsg('err', 'Network error. Please email your resume to admin@flytech.aero.');
+      }
+
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Submit Application ›';
+      }
+    });
+  }
   const airports = {
     SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
     MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
@@ -43,10 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
       zoomControl: true,
     }).setView([13.8, -78.5], 5);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      maxZoom: 19,
-      subdomains: 'abcd',
+    L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      attribution: '&copy; Google',
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
     }).addTo(airportMap);
 
     const pinIcon = L.divIcon({
