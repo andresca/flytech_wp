@@ -26,28 +26,63 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const airports = {
-    SAP: { label: 'SAP - San Pedro Sula, Honduras', query: 'Ramon Villeda Morales International Airport SAP San Pedro Sula Honduras' },
-    MGA: { label: 'MGA - Managua, Nicaragua', query: 'Augusto C. Sandino International Airport MGA Managua Nicaragua' },
-    SJO: { label: 'SJO - San Jose, Costa Rica', query: 'Juan Santamaria International Airport SJO San Jose Costa Rica' },
-    SDQ: { label: 'SDQ - Santo Domingo, D.R.', query: 'Las Americas International Airport SDQ Santo Domingo Dominican Republic' },
-    PUJ: { label: 'PUJ - Punta Cana, D.R.', query: 'Punta Cana International Airport PUJ Dominican Republic' },
+    SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
+    MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
+    SJO: { lat: 9.9939, lng: -84.2088, label: 'SJO - San Jose, Costa Rica' },
+    SDQ: { lat: 18.4297, lng: -69.6689, label: 'SDQ - Santo Domingo, D.R.' },
+    PUJ: { lat: 18.5674, lng: -68.3634, label: 'PUJ - Punta Cana, D.R.' },
   };
 
-  const mapFrame = document.getElementById('airport-map-frame');
+  const mapEl = document.getElementById('airport-map');
   const mapLink = document.querySelector('.map-link');
-  const googleMapUrl = (query) => `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
   const googleMapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
-  if (mapFrame) {
+  if (mapEl && window.L) {
+    const airportMap = L.map(mapEl, {
+      scrollWheelZoom: false,
+      zoomControl: true,
+    }).setView([13.8, -78.5], 5);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      maxZoom: 19,
+      subdomains: 'abcd',
+    }).addTo(airportMap);
+
+    const pinIcon = L.divIcon({
+      className: 'google-style-marker',
+      html: '<span></span>',
+      iconSize: [34, 44],
+      iconAnchor: [17, 42],
+      popupAnchor: [0, -38],
+    });
+
+    const markers = {};
+    const bounds = [];
+    Object.entries(airports).forEach(([code, airport]) => {
+      const marker = L.marker([airport.lat, airport.lng], { icon: pinIcon })
+        .addTo(airportMap)
+        .bindPopup(`<strong>${airport.label}</strong>`);
+      markers[code] = marker;
+      bounds.push([airport.lat, airport.lng]);
+    });
+
+    if (bounds.length) {
+      airportMap.fitBounds(bounds, { padding: [42, 42] });
+    }
+
     document.querySelectorAll('[data-airport]').forEach((item) => {
       item.addEventListener('click', () => {
-        const airport = airports[item.dataset.airport];
+        const code = item.dataset.airport;
+        const airport = airports[code];
         if (!airport) return;
-        mapFrame.src = googleMapUrl(airport.query);
-        if (mapLink) mapLink.href = googleMapSearchUrl(airport.query);
+        airportMap.flyTo([airport.lat, airport.lng], 9, { duration: 1 });
+        markers[code].openPopup();
+        if (mapLink) mapLink.href = googleMapSearchUrl(airport.label);
         document.querySelectorAll('[data-airport]').forEach((el) => el.classList.remove('selected'));
         item.classList.add('selected');
       });
     });
   }
+
 });
