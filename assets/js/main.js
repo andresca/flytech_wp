@@ -26,37 +26,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (careersForm) {
-    careersForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById('careers-msg');
-      const btn = document.getElementById('careers-btn');
-      const captchaToken = window.grecaptcha ? grecaptcha.getResponse() : '';
+    const msg = document.getElementById('careers-msg');
+    const careersBtn = document.getElementById('careers-btn');
+    let careersPendingSubmit = false;
 
-      const showCareersMsg = (type, text) => {
-        if (!msg) return;
-        msg.textContent = text;
-        msg.className = `form-message ${type}`;
-      };
+    const showCareersMsg = (type, text) => {
+      if (!msg) return;
+      msg.textContent = text;
+      msg.className = `form-message ${type}`;
+    };
 
-      if (!resumeInput || !resumeInput.files || resumeInput.files.length === 0) {
-        showCareersMsg('err', 'Please attach your resume before submitting.');
-        return;
-      }
+    const setCareersLoading = (isLoading) => {
+      if (!careersBtn) return;
+      careersBtn.disabled = isLoading;
+      careersBtn.textContent = isLoading ? 'Submitting...' : 'Submit Application ›';
+    };
 
-      if (!captchaToken) {
-        showCareersMsg('err', 'Please complete the reCAPTCHA verification.');
-        return;
-      }
-
+    const submitCareersForm = async (captchaToken) => {
       const fd = new FormData(careersForm);
       fd.append('_subject', `Flytech Aerospace application - ${fd.get('role') || 'General'}`);
       fd.append('_template', 'table');
       fd.append('_captcha', 'false');
+      if (captchaToken) fd.set('g-recaptcha-response', captchaToken);
 
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Submitting...';
-      }
+      setCareersLoading(true);
 
       try {
         const res = await fetch('https://formsubmit.co/ajax/admin@flytech.aero', {
@@ -77,13 +70,32 @@ document.addEventListener('DOMContentLoaded', () => {
         showCareersMsg('err', 'Network error. Please email your resume to admin@flytech.aero.');
       }
 
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Submit Application ›';
+      careersPendingSubmit = false;
+      setCareersLoading(false);
+    };
+
+    window.onCareersCaptcha = (token) => {
+      if (!careersPendingSubmit) return;
+      submitCareersForm(token);
+    };
+
+    careersForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!resumeInput || !resumeInput.files || resumeInput.files.length === 0) {
+        showCareersMsg('err', 'Please attach your resume before submitting.');
+        return;
       }
+
+      if (window.grecaptcha) {
+        careersPendingSubmit = true;
+        grecaptcha.execute();
+        return;
+      }
+
+      await submitCareersForm('');
     });
-  }
-  const airports = {
+  }  const airports = {
     SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
     MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
     SJO: { lat: 9.9939, lng: -84.2088, label: 'SJO - San Jose, Costa Rica' },
