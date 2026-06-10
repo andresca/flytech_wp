@@ -114,43 +114,44 @@ document.addEventListener('DOMContentLoaded', () => {
   if (careersForm) {
     const msg = document.getElementById('careers-msg');
     const careersBtn = document.getElementById('careers-btn');
-    const submitFrame = document.querySelector('iframe[name="careers-submit-frame"]');
-    let careersSubmitted = false;
     const showCareersMsg = (type, text) => {
       if (!msg) return;
       msg.textContent = text;
       msg.className = `form-message ${type}`;
     };
 
-    careersForm.addEventListener('submit', (e) => {
+    careersForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
       const resumeError = validateResumeFile();
       if (resumeError) {
-        e.preventDefault();
         showCareersMsg('err', resumeError);
         return;
       }
 
-      careersSubmitted = true;
       showCareersMsg('ok', 'Sending your application...');
       if (careersBtn) {
         careersBtn.disabled = true;
         careersBtn.textContent = 'Submitting...';
       }
-    });
 
-    if (submitFrame) {
-      submitFrame.addEventListener('load', () => {
-        if (!careersSubmitted) return;
+      try {
+        await fetch(careersForm.action, {
+          method: 'POST',
+          body: new FormData(careersForm),
+          mode: 'no-cors',
+        });
         showCareersMsg('ok', 'Your application has been sent successfully. Please wait for our team to contact you.');
         careersForm.reset();
         if (resumeCount) resumeCount.textContent = 'Attachments (0)';
-        if (careersBtn) {
-          careersBtn.disabled = false;
-          careersBtn.textContent = 'Submit Application ›';
-        }
-        careersSubmitted = false;
-      });
-    }
+      } catch {
+        showCareersMsg('err', 'We could not send your application. Please email your resume to ing.dlopez@gmail.com.');
+      }
+
+      if (careersBtn) {
+        careersBtn.disabled = false;
+        careersBtn.textContent = 'Submit Application ›';
+      }
+    });
   }
   const airports = {
     SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
