@@ -3,17 +3,52 @@ document.addEventListener('DOMContentLoaded', () => {
   const menu = document.querySelector('.nav-links');
   if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('open'));
 
+  const testEmail = 'ing.dlopez@gmail.com';
   const form = document.querySelector('[data-contact-form]');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = new FormData(form);
-      const subject = encodeURIComponent(`Flytech Aerospace request - ${data.get('service') || 'General Inquiry'}`);
-      const body = encodeURIComponent(`Name: ${data.get('name') || ''}\nEmail: ${data.get('email') || ''}\nService: ${data.get('service') || ''}\n\nMessage:\n${data.get('message') || ''}`);
-      window.location.href = `mailto:admin@flytech.aero?subject=${subject}&body=${body}`;
+      const msg = document.getElementById('contact-msg');
+      const contactBtn = document.getElementById('contact-btn');
+      const showContactMsg = (type, text) => {
+        if (!msg) return;
+        msg.textContent = text;
+        msg.className = `form-message ${type}`;
+      };
+
+      const fd = new FormData(form);
+      fd.append('_subject', `Flytech Aerospace contact - ${fd.get('service') || 'General Inquiry'}`);
+      fd.append('_template', 'table');
+      fd.append('_captcha', 'false');
+
+      if (contactBtn) {
+        contactBtn.disabled = true;
+        contactBtn.textContent = 'Sending...';
+      }
+
+      try {
+        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(testEmail)}`, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: fd,
+        });
+        const data = await res.json();
+        if (res.ok && (data.success === 'true' || data.success === true)) {
+          showContactMsg('ok', 'Message sent. Please check ing.dlopez@gmail.com.');
+          form.reset();
+        } else {
+          showContactMsg('err', 'Something went wrong. Please email ing.dlopez@gmail.com directly.');
+        }
+      } catch {
+        showContactMsg('err', 'Network error. Please email ing.dlopez@gmail.com directly.');
+      }
+
+      if (contactBtn) {
+        contactBtn.disabled = false;
+        contactBtn.textContent = '✈ Send Message';
+      }
     });
   }
-
   const careersForm = document.querySelector('[data-careers-form]');
   const resumeInput = document.getElementById('resume-file');
   const resumeCount = document.getElementById('resume-count');
@@ -52,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setCareersLoading(true);
 
       try {
-        const res = await fetch('https://formsubmit.co/ajax/admin@flytech.aero', {
+        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(testEmail)}`, {
           method: 'POST',
           headers: { Accept: 'application/json' },
           body: fd,
@@ -64,10 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (resumeCount) resumeCount.textContent = 'Attachments (0)';
           if (window.grecaptcha) grecaptcha.reset();
         } else {
-          showCareersMsg('err', 'Something went wrong. Please email your resume to admin@flytech.aero.');
+          showCareersMsg('err', 'Something went wrong. Please email your resume to ing.dlopez@gmail.com.');
         }
       } catch {
-        showCareersMsg('err', 'Network error. Please email your resume to admin@flytech.aero.');
+        showCareersMsg('err', 'Network error. Please email your resume to ing.dlopez@gmail.com.');
       }
 
       careersPendingSubmit = false;
@@ -95,7 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       await submitCareersForm('');
     });
-  }  const airports = {
+  }
+
+  const airports = {
     SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
     MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
     SJO: { lat: 9.9939, lng: -84.2088, label: 'SJO - San Jose, Costa Rica' },
