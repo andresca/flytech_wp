@@ -62,13 +62,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const resumeInput = document.getElementById('resume-file');
   const resumeCount = document.getElementById('resume-count');
 
+  const allowedResumeExtensions = ['pdf', 'doc', 'docx'];
+  const allowedResumeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
+  const maxResumeSize = 5 * 1024 * 1024;
+
+  const validateResumeFile = () => {
+    if (!resumeInput || !resumeInput.files || resumeInput.files.length === 0) {
+      return 'Please attach your resume before submitting.';
+    }
+
+    const file = resumeInput.files[0];
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    const hasAllowedExtension = allowedResumeExtensions.includes(extension);
+    const hasAllowedType = !file.type || allowedResumeTypes.includes(file.type);
+
+    if (!hasAllowedExtension || !hasAllowedType) {
+      resumeInput.value = '';
+      if (resumeCount) resumeCount.textContent = 'Attachments (0)';
+      return 'Please attach your resume as a PDF or Word document (.pdf, .doc, .docx).';
+    }
+
+    if (file.size > maxResumeSize) {
+      resumeInput.value = '';
+      if (resumeCount) resumeCount.textContent = 'Attachments (0)';
+      return 'Please attach a resume smaller than 5 MB.';
+    }
+
+    return '';
+  };
+
   if (resumeInput && resumeCount) {
     resumeInput.addEventListener('change', () => {
-      const count = resumeInput.files ? resumeInput.files.length : 0;
-      resumeCount.textContent = `Attachments (${count})`;
+      const error = validateResumeFile();
+      if (error) {
+        const msg = document.getElementById('careers-msg');
+        if (msg) {
+          msg.textContent = error;
+          msg.className = 'form-message err';
+        }
+        return;
+      }
+
+      const file = resumeInput.files[0];
+      resumeCount.textContent = file ? file.name : 'Attachments (0)';
     });
   }
-
   if (careersForm) {
     const msg = document.getElementById('careers-msg');
     const careersBtn = document.getElementById('careers-btn');
@@ -86,36 +128,17 @@ document.addEventListener('DOMContentLoaded', () => {
       careersBtn.textContent = isLoading ? 'Submitting...' : 'Submit Application ›';
     };
 
-    const submitCareersForm = async (captchaToken) => {
-      const fd = new FormData(careersForm);
-      fd.append('_subject', `Flytech Aerospace application - ${fd.get('role') || 'General'}`);
-      fd.append('_template', 'table');
-      fd.append('_captcha', 'false');
-      if (captchaToken) fd.set('g-recaptcha-response', captchaToken);
-
-      setCareersLoading(true);
-
-      try {
-        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(testEmail)}`, {
-          method: 'POST',
-          headers: { Accept: 'application/json' },
-          body: fd,
-        });
-        const data = await parseFormSubmitResponse(res);
-        if (res.ok && (data.success === 'true' || data.success === true)) {
-          showCareersMsg('ok', 'Application submitted. We will review your information shortly.');
-          careersForm.reset();
-          if (resumeCount) resumeCount.textContent = 'Attachments (0)';
-          if (window.grecaptcha) grecaptcha.reset();
-        } else {
-          showCareersMsg('err', formSubmitMessage(data));
-        }
-      } catch {
-        showCareersMsg('err', 'Network error. Please email your resume to ing.dlopez@gmail.com.');
+    const submitCareersForm = (captchaToken) => {
+      let tokenInput = careersForm.querySelector('input[name="g-recaptcha-response"]');
+      if (!tokenInput) {
+        tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'g-recaptcha-response';
+        careersForm.appendChild(tokenInput);
       }
-
-      careersPendingSubmit = false;
-      setCareersLoading(false);
+      tokenInput.value = captchaToken || '';
+      setCareersLoading(true);
+      HTMLFormElement.prototype.submit.call(careersForm);
     };
 
     window.onCareersCaptcha = (token) => {
@@ -123,11 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
       submitCareersForm(token);
     };
 
-    careersForm.addEventListener('submit', async (e) => {
+    careersForm.addEventListener('submit', (e) => {
       e.preventDefault();
-
-      if (!resumeInput || !resumeInput.files || resumeInput.files.length === 0) {
-        showCareersMsg('err', 'Please attach your resume before submitting.');
+      const resumeError = validateResumeFile();
+      if (resumeError) {
+        showCareersMsg('err', resumeError);
         return;
       }
 
@@ -137,10 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      await submitCareersForm('');
+      submitCareersForm('');
     });
   }
-
   const airports = {
     SAP: { lat: 15.4526, lng: -87.9236, label: 'SAP - San Pedro Sula, Honduras' },
     MGA: { lat: 12.1415, lng: -86.1681, label: 'MGA - Managua, Nicaragua' },
