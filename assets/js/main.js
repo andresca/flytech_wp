@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        await fetch(careersForm.action, {
+        await fetch(careersForm.dataset.submitEndpoint, {
           method: 'POST',
           body: new FormData(careersForm),
           mode: 'no-cors',
