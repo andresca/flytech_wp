@@ -4,6 +4,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('open'));
 
   const testEmail = 'ing.dlopez@gmail.com';
+  const parseFormSubmitResponse = async (res) => {
+    const raw = await res.text();
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { success: false, message: raw || res.statusText };
+    }
+  };
+  const formSubmitMessage = (data) => data.message || data.error || 'FormSubmit did not accept the submission. Check whether the destination email is activated.';
   const form = document.querySelector('[data-contact-form]');
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -32,12 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { Accept: 'application/json' },
           body: fd,
         });
-        const data = await res.json();
+        const data = await parseFormSubmitResponse(res);
         if (res.ok && (data.success === 'true' || data.success === true)) {
           showContactMsg('ok', 'Message sent. Please check ing.dlopez@gmail.com.');
           form.reset();
         } else {
-          showContactMsg('err', 'Something went wrong. Please email ing.dlopez@gmail.com directly.');
+          showContactMsg('err', formSubmitMessage(data));
         }
       } catch {
         showContactMsg('err', 'Network error. Please email ing.dlopez@gmail.com directly.');
@@ -92,14 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { Accept: 'application/json' },
           body: fd,
         });
-        const data = await res.json();
+        const data = await parseFormSubmitResponse(res);
         if (res.ok && (data.success === 'true' || data.success === true)) {
           showCareersMsg('ok', 'Application submitted. We will review your information shortly.');
           careersForm.reset();
           if (resumeCount) resumeCount.textContent = 'Attachments (0)';
           if (window.grecaptcha) grecaptcha.reset();
         } else {
-          showCareersMsg('err', 'Something went wrong. Please email your resume to ing.dlopez@gmail.com.');
+          showCareersMsg('err', formSubmitMessage(data));
         }
       } catch {
         showCareersMsg('err', 'Network error. Please email your resume to ing.dlopez@gmail.com.');
