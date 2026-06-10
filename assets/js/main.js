@@ -114,53 +114,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (careersForm) {
     const msg = document.getElementById('careers-msg');
     const careersBtn = document.getElementById('careers-btn');
-    let careersPendingSubmit = false;
-
     const showCareersMsg = (type, text) => {
       if (!msg) return;
       msg.textContent = text;
       msg.className = `form-message ${type}`;
     };
 
-    const setCareersLoading = (isLoading) => {
-      if (!careersBtn) return;
-      careersBtn.disabled = isLoading;
-      careersBtn.textContent = isLoading ? 'Submitting...' : 'Submit Application ›';
-    };
-
-    const submitCareersForm = (captchaToken) => {
-      let tokenInput = careersForm.querySelector('input[name="g-recaptcha-response"]');
-      if (!tokenInput) {
-        tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'g-recaptcha-response';
-        careersForm.appendChild(tokenInput);
-      }
-      tokenInput.value = captchaToken || '';
-      setCareersLoading(true);
-      HTMLFormElement.prototype.submit.call(careersForm);
-    };
-
-    window.onCareersCaptcha = (token) => {
-      if (!careersPendingSubmit) return;
-      submitCareersForm(token);
-    };
-
     careersForm.addEventListener('submit', (e) => {
-      e.preventDefault();
       const resumeError = validateResumeFile();
       if (resumeError) {
+        e.preventDefault();
         showCareersMsg('err', resumeError);
         return;
       }
 
-      if (window.grecaptcha) {
-        careersPendingSubmit = true;
-        grecaptcha.execute();
-        return;
+      if (careersBtn) {
+        careersBtn.disabled = true;
+        careersBtn.textContent = 'Submitting...';
       }
-
-      submitCareersForm('');
     });
   }
   const airports = {
