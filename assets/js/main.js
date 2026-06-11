@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showContactMsg('err', formSubmitMessage(data));
         }
       } catch {
-        showContactMsg('err', 'Network error. Please email ing.dlopez@gmail.com directly.');
+        showContactMsg('err', `Network error. Please email ${contactEmail} directly.`);
       }
 
       if (contactBtn) {
@@ -120,45 +120,15 @@ document.addEventListener('DOMContentLoaded', () => {
       msg.className = `form-message ${type}`;
     };
 
-    careersForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    if (new URLSearchParams(window.location.search).get('sent') === '1') {
+      showCareersMsg('ok', 'Your application has been sent successfully. Please wait for our team to contact you.');
+    }
+
+    careersForm.addEventListener('submit', (e) => {
       const resumeError = validateResumeFile();
       if (resumeError) {
+        e.preventDefault();
         showCareersMsg('err', resumeError);
-        return;
-      }
-
-      showCareersMsg('ok', 'Sending your application...');
-      if (careersBtn) {
-        careersBtn.disabled = true;
-        careersBtn.textContent = 'Submitting...';
-      }
-
-      try {
-        const fd = new FormData(careersForm);
-        fd.append('_subject', `Flytech Aerospace job application - ${fd.get('role') || 'General'}`);
-        fd.append('_template', 'table');
-        fd.append('_captcha', 'false');
-        const res = await fetch(careersForm.dataset.submitEndpoint, {
-          method: 'POST',
-          headers: { Accept: 'application/json' },
-          body: fd,
-        });
-        const data = await parseFormSubmitResponse(res);
-        if (res.ok && (data.success === 'true' || data.success === true)) {
-          showCareersMsg('ok', 'Your application has been sent successfully. Please wait for our team to contact you.');
-          careersForm.reset();
-          if (resumeCount) resumeCount.textContent = 'Attachments (0)';
-        } else {
-          showCareersMsg('err', formSubmitMessage(data));
-        }
-      } catch {
-        showCareersMsg('err', `We could not send your application. Please email your resume to ${contactEmail}.`);
-      }
-
-      if (careersBtn) {
-        careersBtn.disabled = false;
-        careersBtn.textContent = 'Submit Application ›';
       }
     });
   }
