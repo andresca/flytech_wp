@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menu = document.querySelector('.nav-links');
   if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('open'));
 
-  const contactEmail = 'ing.dlopez@gmail.com';
+  const contactEmail = 'Admin@flytech.aero';
   const parseFormSubmitResponse = async (res) => {
     const raw = await res.text();
     try {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       const fd = new FormData(form);
-      fd.append('_subject', `Flytech Aerospace contact - ${fd.get('service') || 'General Inquiry'}`);
+      fd.append('_subject', `Flytech Aerospace contact - ${fd.get('Service') || 'General Inquiry'}`);
       fd.append('_template', 'table');
       fd.append('_captcha', 'false');
 
