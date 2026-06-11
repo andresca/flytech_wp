@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menu = document.querySelector('.nav-links');
   if (btn && menu) btn.addEventListener('click', () => menu.classList.toggle('open'));
 
-  const testEmail = 'ing.dlopez@gmail.com';
+  const contactEmail = 'ing.dlopez@gmail.com';
   const parseFormSubmitResponse = async (res) => {
     const raw = await res.text();
     try {
@@ -36,14 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(testEmail)}`, {
+        const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(contactEmail)}`, {
           method: 'POST',
           headers: { Accept: 'application/json' },
           body: fd,
         });
         const data = await parseFormSubmitResponse(res);
         if (res.ok && (data.success === 'true' || data.success === true)) {
-          showContactMsg('ok', 'Message sent. Please check ing.dlopez@gmail.com.');
+          showContactMsg('ok', 'Message sent! Our team will get back to you shortly.');
           form.reset();
         } else {
           showContactMsg('err', formSubmitMessage(data));
@@ -135,16 +135,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        await fetch(careersForm.dataset.submitEndpoint, {
+        const fd = new FormData(careersForm);
+        fd.append('_subject', `Flytech Aerospace job application - ${fd.get('role') || 'General'}`);
+        fd.append('_template', 'table');
+        fd.append('_captcha', 'false');
+        const res = await fetch(careersForm.dataset.submitEndpoint, {
           method: 'POST',
-          body: new FormData(careersForm),
-          mode: 'no-cors',
+          headers: { Accept: 'application/json' },
+          body: fd,
         });
-        showCareersMsg('ok', 'Your application has been sent successfully. Please wait for our team to contact you.');
-        careersForm.reset();
-        if (resumeCount) resumeCount.textContent = 'Attachments (0)';
+        const data = await parseFormSubmitResponse(res);
+        if (res.ok && (data.success === 'true' || data.success === true)) {
+          showCareersMsg('ok', 'Your application has been sent successfully. Please wait for our team to contact you.');
+          careersForm.reset();
+          if (resumeCount) resumeCount.textContent = 'Attachments (0)';
+        } else {
+          showCareersMsg('err', formSubmitMessage(data));
+        }
       } catch {
-        showCareersMsg('err', 'We could not send your application. Please email your resume to ing.dlopez@gmail.com.');
+        showCareersMsg('err', `We could not send your application. Please email your resume to ${contactEmail}.`);
       }
 
       if (careersBtn) {
