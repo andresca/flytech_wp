@@ -138,6 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
     SJO: { lat: 9.9939, lng: -84.2088, label: 'SJO - San Jose, Costa Rica' },
     SDQ: { lat: 18.4297, lng: -69.6689, label: 'SDQ - Santo Domingo, D.R.' },
     PUJ: { lat: 18.5674, lng: -68.3634, label: 'PUJ - Punta Cana, D.R.' },
+    BOG: { lat: 4.7016, lng: -74.1469, label: 'BOG - Bogota, Colombia' },
+    MDE: { lat: 6.1645, lng: -75.4231, label: 'MDE - Medellin, Colombia' },
+    PTY: { lat: 9.0714, lng: -79.3835, label: 'PTY - Panama City, Panama' },
   };
 
   const mapEl = document.getElementById('airport-map');
